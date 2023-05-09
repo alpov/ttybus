@@ -18,6 +18,7 @@
 #include <unistd.h>
 
 #include "configure.h"
+#include "loragw_gps.h"
 
 #define MAX_TTY        256
 #define BUFFER_SIZE    4096
@@ -31,8 +32,9 @@ static char *init_string;
 
 static void usage(char *app) {
   fprintf(stderr, "%s, Ver %s.%s.%s\n", basename(app), MAJORV, MINORV, SVNVERSION);
-  fprintf(stderr, "Usage: %s [-h] [-s bus_path] tty_device\n", app);
+  fprintf(stderr, "Usage: %s [-h] [-g] [-s bus_path] tty_device\n", app);
   fprintf(stderr, "-h: shows this help\n");
+  fprintf(stderr, "-g: gps mode (sniffer)\n");
   fprintf(stderr, "-d: detach from terminal and run as daemon\n");
   fprintf(stderr, "-s bus_path: uses bus_path as bus path name (default: /tmp/ttybus)\n");
   fprintf(stderr, "-i init_string: send init string to device\n\n");
@@ -71,16 +73,20 @@ int main(int argc, char *argv[]) {
   char buffer[BUFFER_SIZE];
   int realdev;
   int daemonize = 0;
+  int gps = 0;
 
   while (1) {
     int c;
-    c = getopt(argc, argv, "dhi:s:");
+    c = getopt(argc, argv, "dghi:s:");
     if (c == -1)
       break;
 
     switch (c) {
       case 'd':
         daemonize = 1;
+        break;
+      case 'g':
+        gps = 1;
         break;
       case 'h':
         usage(argv[0]);  // implies exit
@@ -110,7 +116,15 @@ int main(int argc, char *argv[]) {
   syslog(LOG_INFO, "Connecting to bus: %s\n", tty_bus_path);
   fd = tty_connect(tty_bus_path);
 
-  realdev = open(devname, O_RDWR);
+  if (gps) {
+    if (lgw_gps_enable(devname, "ubx7", 0, &realdev) != LGW_GPS_SUCCESS) {
+      fprintf(stderr, "WARNING: [main] impossible to open %s for GPS sync (check permissions)\n", devname);
+    } else {
+      fprintf(stderr, "INFO: [main] TTY port %s open for GPS synchronization\n", devname);
+    }
+  } else {
+    realdev = open(devname, O_RDWR);
+  }
   if (realdev < 0) {
     perror("opening device");
     exit(3);

@@ -37,9 +37,9 @@ tty_fake.o: tty_fake.c
 
 
 tty_attach: tty_attach.o
-	gcc -o tty_attach tty_attach.o
+	gcc -o tty_attach -L../lora_gateway/libloragw/ tty_attach.o -lloragw
 tty_attach.o: tty_attach.c
-	gcc -c tty_attach.c $(CFLAGS)
+	gcc -I../lora_gateway/libloragw/inc -c tty_attach.c $(CFLAGS)
 
 dpipe: dpipe.o
 	gcc -o dpipe dpipe.o
